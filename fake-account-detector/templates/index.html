@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake Account Detector - AI-Powered Instagram Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='2') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <p class="kicker">Instagram Intelligence Console</p>
+                <h1>Fake Account Detector</h1>
+                <p class="subtitle">AI-Powered Instagram Account Authentication</p>
+
+                <div class="header-pills">
+                    <span class="pill">Live Profile Fetch</span>
+                    <span class="pill">ML Risk Analysis</span>
+                    <span class="pill">Manual Override</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-grid">
+
+            <!-- LEFT SIDE -->
+            <section class="input-section">
+                <h2>Account Analysis</h2>
+
+                <div class="form-group">
+                    <label for="username">Instagram Username</label>
+
+                    <div class="input-with-button">
+                        <input
+                            type="text"
+                            id="username"
+                            placeholder="e.g., username"
+                            autocomplete="off"
+                        >
+
+                        <button
+                            id="fetch-btn"
+                            class="btn-secondary"
+                            title="Fetch live data from Instagram"
+                        >
+                            Fetch Data
+                        </button>
+                    </div>
+
+                    <small class="hint">
+                        Enter a username and fetch real-time data
+                    </small>
+                </div>
+
+                <!-- PROFILE -->
+                <div id="fetched-profile" class="fetched-profile hidden">
+                    <h3 class="success-icon">Profile Loaded</h3>
+                    <div id="profile-data"></div>
+                </div>
+
+                <!-- ERROR -->
+                <div id="fetch-error" class="error-box hidden">
+                    <p id="error-message"></p>
+                </div>
+
+                <!-- SKIP -->
+                <div id="skip-section" class="skip-section hidden">
+                    <button
+                        id="skip-btn"
+                        class="btn-secondary"
+                        onclick="skipToManual()"
+                    >
+                        Skip to Manual Entry
+                    </button>
+
+                    <small class="skip-note">
+                        You can enter account details manually instead
+                    </small>
+                </div>
+
+                <!-- FORM -->
+                <form id="analysis-form" class="form-grid">
+
+                    <div class="form-group">
+                        <label for="bio">Bio / Description</label>
+
+                        <textarea
+                            id="bio"
+                            placeholder="Enter account bio..."
+                            rows="4"
+                        ></textarea>
+                    </div>
+
+                    <div class="stats-grid">
+
+                        <div class="stat-input">
+                            <label for="followers">Followers</label>
+                            <input type="number" id="followers" min="0" value="0">
+                        </div>
+
+                        <div class="stat-input">
+                            <label for="following">Following</label>
+                            <input type="number" id="following" min="0" value="0">
+                        </div>
+
+                        <div class="stat-input">
+                            <label for="posts">Posts</label>
+                            <input type="number" id="posts" min="0" value="0">
+                        </div>
+
+                        <div class="stat-input">
+                            <label for="profile-pic">Profile Pic</label>
+
+                            <select id="profile-pic">
+                                <option value="1">Yes</option>
+                                <option value="0">No</option>
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <button type="submit" class="btn-primary">
+                        Analyze Account
+                    </button>
+
+                </form>
+
+                <!-- LOADING -->
+                <div id="loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Analyzing account...</p>
+                </div>
+
+                <!-- FOOTER -->
+                <div class="form-footer">
+                    <p>
+                        <strong>Disclaimer:</strong>
+                        This is a screening tool. Always verify independently.
+                    </p>
+                </div>
+
+            </section>
+
+            <!-- RIGHT SIDE -->
+            <section class="results-section">
+
+                <h2>Analysis Results</h2>
+
+                <!-- EMPTY STATE -->
+                <div id="no-results" class="no-results">
+
+                    <div class="no-results-content">
+                        <p class="no-results-text">
+                            Fill the form and click Analyze
+                        </p>
+
+                        <p class="no-results-subtext">
+                            Risk score, confidence, and recommendation will appear here.
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- RESULTS -->
+                <div id="results" class="results-container hidden">
+
+                    <!-- SUMMARY -->
+                    <div class="result-summary" id="result-summary">
+
+                        <div>
+                            <div class="summary-label">Decision</div>
+                            <div id="result-verdict" class="summary-value"></div>
+                        </div>
+
+                        <span id="result-chip" class="result-chip">
+                            Pending
+                        </span>
+
+                    </div>
+
+                    <!-- CARDS -->
+                    <div class="results-grid">
+
+                        <div class="metric-card prediction-card">
+                            <div class="metric-label">Account Status</div>
+                            <div id="result-prediction" class="metric-value"></div>
+                        </div>
+
+                        <div class="metric-card confidence-card">
+                            <div class="metric-label">Model Confidence</div>
+                            <div id="result-confidence" class="metric-value"></div>
+                        </div>
+
+                        <div class="metric-card risk-card">
+                            <div class="metric-label">Risk Score</div>
+                            <div id="result-risk-score" class="metric-value"></div>
+                        </div>
+
+                    </div>
+
+                    <!-- PROGRESS -->
+                    <div class="progress-container">
+
+                        <div class="progress-label">
+                            Fake Account Probability
+                        </div>
+
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill"></div>
+                        </div>
+
+                        <div id="progress-text" class="progress-text"></div>
+
+                    </div>
+
+                    <!-- VERDICT -->
+                    <div class="verdict-card" id="verdict-card">
+
+                        <div class="verdict-header">
+
+                            <h3 id="verdict-icon" class="verdict-icon"></h3>
+
+                            <div>
+                                <div class="verdict-title">Final Verdict</div>
+
+                                <div
+                                    id="result-verdict-detail"
+                                    class="verdict-text"
+                                ></div>
+                            </div>
+
+                        </div>
+
+                        <div
+                            id="result-reasoning"
+                            class="reasoning-text"
+                        ></div>
+
+                    </div>
+
+                    <!-- INSIGHTS -->
+                    <div class="stats-display insights-display">
+
+                        <div class="insights-title">
+                            Highlights
+                        </div>
+
+                        <ul
+                            id="result-insights"
+                            class="insights-list"
+                        ></ul>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js', v='2') }}"></script>
+</body>
+</html>
