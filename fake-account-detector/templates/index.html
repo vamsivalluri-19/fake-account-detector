@@ -127,6 +127,23 @@
 
                 </form>
 
+                    <!-- MODEL METRICS -->
+                    <div id="model-metrics" class="metrics-panel">
+                        <h3>Model Metrics</h3>
+                        <div class="metrics-list">
+                            <div>Accuracy: <strong id="metric-accuracy">—</strong></div>
+                            <div>Precision: <strong id="metric-precision">—</strong></div>
+                            <div>Recall: <strong id="metric-recall">—</strong></div>
+                            <div>F1: <strong id="metric-f1">—</strong></div>
+                        </div>
+
+                        <label for="threshold-slider" class="threshold-label">
+                            Decision threshold: <span id="threshold-value">0.50</span>
+                        </label>
+                        <input type="range" id="threshold-slider" min="0" max="1" step="0.01" value="0.5">
+                        <small class="threshold-help">Adjust to trade recall vs precision for this run.</small>
+                    </div>
+
                 <!-- LOADING -->
                 <div id="loading" class="loading hidden">
                     <div class="spinner"></div>

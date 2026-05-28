@@ -18,6 +18,31 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
         console.warn('Cleanup script failed', err);
     }
+
+    // Fetch model metrics and initialize threshold slider
+    (async function loadMetrics(){
+        try{
+            const res = await fetch('/api/metrics');
+            const data = await res.json();
+            if (res.ok && data.success && data.metrics){
+                const m = data.metrics;
+                document.getElementById('metric-accuracy').textContent = (m.accuracy || '—');
+                document.getElementById('metric-precision').textContent = (m.precision || '—');
+                document.getElementById('metric-recall').textContent = (m.recall || '—');
+                document.getElementById('metric-f1').textContent = (m.f1 || '—');
+                const modelThreshold = Number(m.decision_threshold ?? m.model_threshold ?? 0.5);
+                const slider = document.getElementById('threshold-slider');
+                const val = document.getElementById('threshold-value');
+                if (slider){
+                    slider.value = modelThreshold.toFixed(2);
+                    val.textContent = Number(slider.value).toFixed(2);
+                    slider.addEventListener('input', () => { val.textContent = Number(slider.value).toFixed(2); });
+                }
+            }
+        }catch(err){
+            // ignore
+        }
+    })();
 });
 
 document
@@ -257,6 +282,12 @@ async function analyzeAccount(e) {
     // include fetched profile enrichments if available
     if (window.latestProfile) {
         payload.profile = window.latestProfile;
+    }
+
+    // include user-selected threshold if available
+    const slider = document.getElementById('threshold-slider');
+    if (slider){
+        payload.threshold = Number(slider.value);
     }
 
     try {

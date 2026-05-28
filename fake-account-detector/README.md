@@ -93,10 +93,13 @@ Open: `http://127.0.0.1:5000`
 
 Current metrics in `model/metrics.json`:
 
-- Accuracy: `0.9707`
-- Precision: `0.9714`
-- Recall: `0.8500`
-- F1: `0.9067`
+- Accuracy: reported on the held-out test split
+- Precision: reported on the held-out test split
+- Recall: reported on the held-out test split
+- F1: reported on the held-out test split
+- Decision threshold: tuned on validation data to improve recall/F1 instead of using a fixed 0.5 cutoff
+
+When you retrain, review recall and F1 first. High accuracy can still hide missed fake accounts if the dataset is imbalanced.
 
 ## Notes and Limitations
 

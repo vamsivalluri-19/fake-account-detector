@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 
 import joblib
-import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -87,6 +86,35 @@ def add_ratio_feature(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def find_best_threshold(
+    y_true: pd.Series,
+    probabilities: pd.Series,
+) -> tuple[float, dict[str, float]]:
+    best_threshold = 0.5
+    best_score = -1.0
+    best_metrics = {"accuracy": 0.0, "precision": 0.0, "recall": 0.0, "f1": 0.0}
+
+    for threshold in [value / 100 for value in range(10, 91)]:
+        predictions = (probabilities >= threshold).astype(int)
+        precision = precision_score(y_true, predictions, zero_division=0)
+        recall = recall_score(y_true, predictions, zero_division=0)
+        f1 = f1_score(y_true, predictions, zero_division=0)
+        accuracy = accuracy_score(y_true, predictions)
+
+        score = f1 + (recall * 0.05)
+        if score > best_score:
+            best_score = score
+            best_threshold = threshold
+            best_metrics = {
+                "accuracy": accuracy,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+            }
+
+    return best_threshold, best_metrics
+
+
 def validate_columns(df: pd.DataFrame) -> None:
     missing = STANDARD_COLUMNS - set(df.columns)
     if missing:
@@ -135,8 +163,16 @@ def main() -> None:
     X = df[TRAIN_FEATURE_COLUMNS]
     y = pd.to_numeric(df["label"], errors="coerce")
 
-    X_train, X_test, y_train, y_test = train_test_split(
+    X_train_full, X_test, y_train_full, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_full,
+        y_train_full,
+        test_size=0.25,
+        random_state=42,
+        stratify=y_train_full,
     )
 
     pipeline = Pipeline(
@@ -154,23 +190,44 @@ def main() -> None:
     )
 
     pipeline.fit(X_train, y_train)
-    predictions = pipeline.predict(X_test)
+
+    validation_probabilities = pipeline.predict_proba(X_val)[:, 1]
+    decision_threshold, validation_metrics = find_best_threshold(
+        y_val,
+        validation_probabilities,
+    )
+
+    test_probabilities = pipeline.predict_proba(X_test)[:, 1]
+    predictions = (test_probabilities >= decision_threshold).astype(int)
 
     metrics = {
         "accuracy": accuracy_score(y_test, predictions),
         "precision": precision_score(y_test, predictions, zero_division=0),
         "recall": recall_score(y_test, predictions, zero_division=0),
         "f1": f1_score(y_test, predictions, zero_division=0),
+        "decision_threshold": decision_threshold,
+        "validation_metrics": validation_metrics,
     }
 
     print("Evaluation metrics:")
     for name, value in metrics.items():
-        print(f"  {name}: {value:.4f}")
+        if isinstance(value, dict):
+            print(f"  {name}:")
+            for sub_name, sub_value in value.items():
+                print(f"    {sub_name}: {sub_value:.4f}")
+        elif isinstance(value, float):
+            print(f"  {name}: {value:.4f}")
+        else:
+            print(f"  {name}: {value}")
 
     model_path = Path(args.model_out)
     model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(
-        {"model": pipeline, "feature_columns": TRAIN_FEATURE_COLUMNS},
+        {
+            "model": pipeline,
+            "feature_columns": TRAIN_FEATURE_COLUMNS,
+            "decision_threshold": decision_threshold,
+        },
         model_path,
     )
     print(f"Model saved to: {model_path}")

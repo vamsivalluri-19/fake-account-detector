@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 from pathlib import Path
 import pandas as pd
 import joblib
+import json
 from utils.features import extract_features
 from utils.verdict import compute_verdict
 from utils.instagram_fetch import fetch_instagram_profile
@@ -17,11 +18,13 @@ try:
     # The serialized artifact stores both model object and the training column order.
     MODEL = data["model"]
     FEATURE_COLUMNS = data["feature_columns"]
+    MODEL_THRESHOLD = float(data.get("decision_threshold", 0.5))
     print("Model loaded successfully")
 except Exception as e:
     print(f"Error loading model: {e}")
     MODEL = None
     FEATURE_COLUMNS = []
+    MODEL_THRESHOLD = 0.5
 
 
 # Serve the main HTML page
@@ -64,6 +67,13 @@ def analyze_account():
             posts=profile.get('posts'),
         )
         
+        # Allow client to override decision threshold (slider)
+        user_threshold = data.get('threshold', None)
+        try:
+            threshold_to_use = float(user_threshold) if user_threshold is not None else MODEL_THRESHOLD
+        except Exception:
+            threshold_to_use = MODEL_THRESHOLD
+
         # Make prediction
         used_fallback = True
         if MODEL is not None and FEATURE_COLUMNS:
@@ -76,7 +86,7 @@ def analyze_account():
             try:
                 # predict_proba()[1] is probability of the "Fake" class.
                 probability = float(MODEL.predict_proba(feature_frame)[0][1])
-                prediction = "Fake" if probability >= 0.5 else "Real"
+                prediction = "Fake" if probability >= threshold_to_use else "Real"
                 used_fallback = False
             except Exception as e:
                 # If model prediction fails for any reason, fall back to heuristic
@@ -94,7 +104,7 @@ def analyze_account():
             # many external links increases suspicion slightly
             prob += min(0.2, features.get('linked_external_profiles_count', 0.0) * 0.05)
             probability = float(max(0.01, min(0.99, prob)))
-            prediction = "Fake" if probability >= 0.5 else "Real"
+            prediction = "Fake" if probability >= threshold_to_use else "Real"
         
         # Compute verdict
         verdict_result = compute_verdict(
@@ -113,9 +123,29 @@ def analyze_account():
             "risk_score": verdict_result.risk_score,
             "reasoning": verdict_result.reasoning,
             "features": display_features,
+            "used_threshold": threshold_to_use,
+            "model_threshold": MODEL_THRESHOLD,
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
+
+
+@app.route('/api/metrics', methods=['GET'])
+def get_metrics():
+    """Return saved training metrics and model threshold"""
+    try:
+        metrics_path = BASE_DIR / "model" / "metrics.json"
+        if not metrics_path.exists():
+            return jsonify({"success": False, "error": "metrics not found"}), 404
+
+        metrics = json.loads(metrics_path.read_text(encoding='utf-8'))
+        # include model's stored threshold if present
+        metrics_out = dict(metrics)
+        metrics_out.setdefault('model_threshold', MODEL_THRESHOLD)
+
+        return jsonify({"success": True, "metrics": metrics_out})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # API: Fetch Instagram profile
