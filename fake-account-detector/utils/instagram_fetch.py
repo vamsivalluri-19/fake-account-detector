@@ -6,6 +6,15 @@ from typing import Optional, Tuple, List, Dict, Any
 from dataclasses import dataclass, asdict, field
 from bs4 import BeautifulSoup
 
+# Detect Playwright availability early to provide clear fallbacks
+try:
+    # Importing the async API confirms Playwright is installed
+    import playwright  # type: ignore
+    PLAYWRIGHT_AVAILABLE = True
+except Exception:
+    PLAYWRIGHT_AVAILABLE = False
+    logger.info("Playwright not available in this environment; fetch_instagram_profile will return a descriptive error.")
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -308,7 +317,13 @@ def fetch_instagram_profile(
     
     username = username.strip()
     logger.info(f"Fetching Instagram profile for {username} using Playwright")
-    
+    if not PLAYWRIGHT_AVAILABLE:
+        return None, (
+            "Playwright is not installed in this environment. "
+            "This host cannot run browser-based scraping. "
+            "To enable scraping, deploy to a host with Playwright installed or run a separate scraping service."
+        )
+
     try:
         result = _fetch_via_playwright_sync(username, headless, fetch_details=fetch_details)
         if isinstance(result, tuple):
@@ -320,7 +335,7 @@ def fetch_instagram_profile(
     except Exception as e:
         logger.warning(f"Playwright method failed: {e}")
         return None, str(e)
-    
+
     return None, "Unable to fetch Instagram profile"
 
 
